@@ -3,8 +3,6 @@
 #include <Arduino.h>
 #include <CircularBuffer.h>
 
-#include "light.h"
-
 static uint8_t getNumberOfParameters(const char *cmd, char delim = ' '){
     uint8_t res = 0;
     boolean delimToChTrans[2] = {false, true};
@@ -38,7 +36,7 @@ class CommandClass{
 
 class CLICommands{
     private:
-        CircularBuffer<CommandClass*, 4> cmds;
+        CircularBuffer<CommandClass*, 5> cmds;
         CommandClass *cmd;
         CLICommands(){}
     public:

@@ -1,0 +1,2 @@
+pyTelegramBotAPI
+paho.mqtt

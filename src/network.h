@@ -15,6 +15,12 @@
 #include "mqtt.h"
 #include "clicommands.h"
 
+#include "EEPROMHelper.h"
+
+#include "htmlpage.h"
+
+#include "APPInfoHelper.h"
+
 #define SSID_STA        "Netzwerk"
 #define PASSWORD_STA    "ubuntu56@brahamDC"
 
@@ -29,6 +35,70 @@ AsyncWebServer webserver(80);
 ESP8266WiFiMulti wifimulti;
 MDNSResponder mmdns;
 
+
+EEPROMHelper eeprom;
+
+
+static void appStart(void)
+{
+    webserver.on("/wifi", 
+        HTTP_ANY, [](AsyncWebServerRequest *request) {
+            int numparam = request->params();
+
+            if(numparam == 0){
+                request->send(200, "text/html", wifistarthtml);
+            }
+            else if(numparam == 2)
+            {
+                request->send(200, "text/plaintext", "OK");
+                eeprom.write(EEPROM_SSID_POS, request->getParam(0)->value());
+                eeprom.write(EEPROM_PASS_POS, request->getParam(1)->value());
+
+                Lamp::setColorBlend(HtmlColor(0xff0000), 1000);
+                Lamp::setBrighgt(20, 80, 500);
+                
+
+                //ESP.restart();
+            }
+            else
+            {
+                request->send(404, "text/html");
+            } 
+        }
+    );
+
+    webserver.on("/cloud",
+        HTTP_GET, [](AsyncWebServerRequest *request) {
+            int numparam = request->params();
+            if(numparam == 0) request->send(200, "text/plaintext", "CLOUD_ID: " + eeprom.read(EEPROM_CLOUD_ID_POS) + "\nCLOUD_PASS: " + eeprom.read(EEPROM_CLOUD_PASS_POS));
+            else if(numparam == 2){
+                if((request->getParam(0)->name() == "cloudid") && (request->getParam(1)->name() == "cloudpass")){
+                    eeprom.write(EEPROM_CLOUD_ID_POS,   request->getParam(0)->value());
+                    eeprom.write(EEPROM_CLOUD_PASS_POS, request->getParam(1)->value());
+                    request->send(200, "text/plaintext", "Accepted");
+                }else{
+                    request->send(404, "text/plaintext", "Error params");
+                }
+            }else{
+                request->send(404, "text/html");
+            }
+        }
+    );
+
+    webserver.on("/info",
+        HTTP_ANY, [](AsyncWebServerRequest *request) {
+            APPInfoHelper data;
+           request->send(200, "text/plaintext", data.getString());
+        }
+    );
+
+    webserver.begin();
+    AsyncElegantOTA.begin(&webserver);
+    mmdns.begin("efeslamp", WiFi.localIP());
+    mmdns.addService("http", "tcp", 80);
+}
+
+
 class Network{
     private:
         MQTT mqtt;
@@ -36,20 +106,27 @@ class Network{
         uint64_t lasttime;
 
         boolean ap_started;
-        boolean sta_started;
+        
         boolean servers_started;
     public:
+        boolean sta_started;
+
         Network(){
             lasttime = millis();
             ap_started = false;
             sta_started = false;
         }
         void begin(void){
-            WiFi.begin(SSID_STA, PASSWORD_STA);
+
+            String ssid = eeprom.read(EEPROM_SSID_POS);
+            String pass = eeprom.read(EEPROM_PASS_POS);
+
+            WiFi.begin(ssid, pass);
             CLICommands::CLI()->registerCommand(new SetColorCmd());
             CLICommands::CLI()->registerCommand(new OnOffCmd());
             CLICommands::CLI()->registerCommand(new SetBrightCmd());
             CLICommands::CLI()->registerCommand(new BlinkCmd());
+            CLICommands::CLI()->registerCommand(new GetInfoCmd());
             Lamp::setColorBlend(HtmlColor(0xff0000), 100);
         }
 
@@ -66,6 +143,9 @@ class Network{
                         WiFi.softAP(SSID_AP, PASSWORD_AP);
 
                         Lamp::setColorBlend(HtmlColor(0x00ff00), 500);
+
+                        appStart();
+
                         ap_started = true;
                     }
                 }else{
@@ -78,14 +158,7 @@ class Network{
 
                     mqtt.begin();
 
-                    webserver.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-                        request->send(200, "text/plain", "HALLO FROM EfesLAMP");
-                    });
-                    
-                    webserver.begin();
-                    AsyncElegantOTA.begin(&webserver);
-                    mmdns.begin("EfesLAMP", WiFi.localIP());
-                    mmdns.addService("http", "tcp", 80);
+                    appStart();
                 }
             }
 

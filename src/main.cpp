@@ -1,4 +1,3 @@
-#include "light.h"
 #include "network.h"
 #include "clapsensor.h"
 #include "lamp.h"

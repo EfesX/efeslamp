@@ -3,6 +3,8 @@
 #include <Arduino.h>
 #include "CLICommandClass.h"
 #include "lamp.h"
+#include "mqtt.h"
+#include "APPInfoHelper.h"
 
 class SetColorCmd : public CommandClass{
     private:
@@ -34,7 +36,8 @@ class SetColorCmd : public CommandClass{
                     {
                         color = strtol(&getParamFromCmd(cmd, 2, ' ')[1], NULL, 16);    
                     }
-                    else{
+                    else
+                    {
                         color = strtol(getParamFromCmd(cmd, 2, ' '), NULL, 16);
                     }
                     
@@ -172,5 +175,32 @@ class BlinkCmd : public CommandClass{
                 Lamp::blink(N, tau);
                 strcpy(wbuf, "OK\r\n");
             }
+        }
+};
+
+class GetInfoCmd : public CommandClass{
+    private:
+        char *cmdname;
+        char *msghelp;
+    public:
+        GetInfoCmd()
+        {
+            cmdname = "getinfo";
+            msghelp = "getinfo: returns in log topic info about network data\r\n";
+        }
+        ~GetInfoCmd()
+        {
+            delete cmdname;
+            delete msghelp;
+        }
+        char *getCmdName(){ return cmdname; }
+        char *getMsgHelp(){ return msghelp; }
+        void execute(char *wbuf, const char *cmd)
+        {
+            APPInfoHelper info;
+            for(uint8_t i = 0; i < info.getString().length(); ++i){
+                wbuf[i] = info.getString().charAt(i);
+            }
+            wbuf[info.getString().length()] = 0x00;
         }
 };

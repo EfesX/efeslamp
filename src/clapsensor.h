@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include "light.h"
 
 #define CLAP_PIN D3
 

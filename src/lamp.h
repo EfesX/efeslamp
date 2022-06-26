@@ -161,6 +161,9 @@ class Lamp {
         static uint8_t getBlendTau(void){
             return blend_tau;
         }
+        static RgbColor getCurrentColor(void){
+            return blendclr[0].EndingColor;
+        }
 
         static void tick(){
             if(animations.IsAnimating()){
